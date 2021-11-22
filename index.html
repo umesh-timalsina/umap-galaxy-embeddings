@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Learned Features (UMAP)</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-2.6.3.min.js"></script>
+    <style>
+        /* Make the image fully responsive */
+        .carousel-inner img {
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+
+<div id="demo" class="carousel slide" data-ride="carousel">
+    <div class="carousel-indicators">
+        <div>Select Feature</div>
+        <select class="custom-select" aria-label="Select Feature" id="featurePicker">
+        </select>
+    </div>
+    <div class="carousel-inner bg-info">
+        <div class="carousel-item active">
+            <div class="d-flex align-items-center justify-content-center min-vh-100">
+                <div id="graph" class="min-vh-100 min-vw-100"></div>
+            </div>
+        </div>
+    </div>
+</div>
+<div style="position:absolute; z-index: 1000; top: 5%; right: 5%">
+    <img id="galaxyImage" width="250px" height="250px"
+         src="https://freepngimg.com/thumb/galaxy/5-2-galaxy-png-clipart.png">
+    <ul id="galaxyDetails" style="width:250px; height:250px;" class="list-group">
+    </ul>
+</div>
+
+<script>
+    window.onload = async function () {
+        const allJSONs = [
+            'umaps/umap_learned_seed_62_fold_3_z.json',
+            'umaps/umap_learned_seed_82_fold_4_z.json',
+            'umaps/umap_learned_seed_72_fold_3_z.json',
+            'umaps/umap_learned_seed_52_fold_5_z.json',
+            'umaps/umap_learned_seed_32_fold_1_z.json',
+            'umaps/umap_learned_seed_72_fold_3_EBV.json',
+            'umaps/umap_learned_seed_62_fold_3_EBV.json',
+            'umaps/umap_learned_seed_32_fold_1_EBV.json',
+            'umaps/umap_learned_seed_42_fold_2_EBV.json',
+            'umaps/umap_learned_seed_82_fold_4_EBV.json',
+            'umaps/umap_learned_seed_52_fold_5_EBV.json',
+            'umaps/umap_learned_seed_32_fold_1_bptclass.json',
+            'umaps/umap_learned_seed_32_fold_1_lgm_tot_p50.json',
+            'umaps/umap_learned_seed_52_fold_5_dered_petro_r.json',
+            'umaps/umap_learned_seed_82_fold_4_dered_petro_r.json',
+            'umaps/umap_learned_seed_52_fold_5_lgm_tot_p50.json',
+            'umaps/umap_learned_seed_52_fold_5_bptclass.json',
+            'umaps/umap_learned_seed_62_fold_3_dered_petro_r.json',
+            'umaps/umap_learned_seed_42_fold_2_lgm_tot_p50.json',
+            'umaps/umap_learned_seed_72_fold_3_bptclass.json',
+            'umaps/umap_learned_seed_82_fold_4_lgm_tot_p50.json',
+            'umaps/umap_learned_seed_72_fold_3_lgm_tot_p50.json',
+            'umaps/umap_learned_seed_32_fold_1_dered_petro_r.json',
+            'umaps/umap_learned_seed_62_fold_3_bptclass.json',
+            'umaps/umap_learned_seed_42_fold_2_dered_petro_r.json',
+            'umaps/umap_learned_seed_42_fold_2_z.json',
+            'umaps/umap_learned_seed_82_fold_4_bptclass.json',
+            'umaps/umap_learned_seed_42_fold_2_bptclass.json',
+            'umaps/umap_learned_seed_72_fold_3_dered_petro_r.json',
+            'umaps/umap_learned_seed_62_fold_3_lgm_tot_p50.json'
+        ];
+        const trainingIndices = await (await fetch("training_indices.json")).json();
+        const galaxyDetails = await (await fetch("galaxy_details.json")).json();
+        const galaxyDetailsContainer = document.querySelector("#galaxyDetails");
+        const galaxyImage = document.querySelector("#galaxyImage");
+
+        const featurePicker = document.querySelector("#featurePicker");
+        allJSONs.forEach((json, index) => {
+            const opt = document.createElement("option");
+            opt.value = json;
+            if (index === 0) {
+                opt.selected = true;
+            }
+            opt.innerText = json.replace('umaps/', '').replace(".json", "");
+            featurePicker.appendChild(opt);
+        });
+
+
+        const graphDiv = document.querySelector("#graph");
+        let plotData = await (await fetch(allJSONs[0])).json();
+
+        featurePicker.onchange = async () => {
+            clearGalaxyDetails();
+            const plotURL = featurePicker.value;
+            plotData = await (await fetch(plotURL)).json();
+            Plotly.purge(graphDiv);
+            Plotly.newPlot(graphDiv, plotData);
+            graphDiv.on('plotly_click', handlePointClick);
+        };
+
+        Plotly.newPlot(graphDiv, plotData);
+
+        function getMetadata(index) {
+            const metadataIndex = trainingIndices[index];
+            const metadata = Object.assign({}, galaxyDetails[metadataIndex]);
+            metadata.index = metadataIndex;
+            return metadata;
+        }
+
+        function addGalaxyDetails(metadata) {
+            clearGalaxyDetails();
+            Object.entries(metadata).forEach(([metadataKey, value]) => {
+                const li = document.createElement("li");
+                li.className = "list-group-item";
+                li.innerText = `${metadataKey}: ${value}`;
+                galaxyDetailsContainer.appendChild(li);
+            });
+            const URLLi = document.createElement('li');
+            URLLi.className = "list-group-item";
+            const navAnchor = document.createElement('a');
+            navAnchor.target = "_blank";
+            navAnchor.href = getNaviURL(metadata.ra, metadata.dec);
+            navAnchor.innerText = "Open in SDSS Navigator";
+            URLLi.appendChild(navAnchor);
+            galaxyDetailsContainer.appendChild(URLLi);
+            changeDisplayedImage(metadata);
+
+        }
+
+        function changeDisplayedImage(metadata) {
+            const imageURL = `./images/image_${metadata.index.toString().padStart(6, '0')}.jpg`;
+            galaxyImage.src = imageURL;
+        }
+
+        function getNaviURL(ra, dec) {
+            return `http://skyserver.sdss.org/dr14/en/tools/chart/navi.aspx?ra=${ra}&dec=${dec}&scale=0.2&width=120&height=120`;
+        }
+
+        const clearGalaxyDetails = function () {
+            while (galaxyDetailsContainer.firstChild) {
+                galaxyDetailsContainer.removeChild(galaxyDetailsContainer.firstChild);
+            }
+            galaxyImage.src = "https://freepngimg.com/thumb/galaxy/5-2-galaxy-png-clipart.png";
+        }
+
+        const handlePointClick = data => {
+            const [point] = data.points;
+            const metadata = getMetadata(point.pointNumber);
+            addGalaxyDetails(metadata);
+        };
+
+        graphDiv.on('plotly_click', handlePointClick);
+    }
+</script>
+</body>
+
+</html>
