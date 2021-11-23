@@ -12,8 +12,8 @@
     <style>
         /* Make the image fully responsive */
         .carousel-inner img {
-            width: 100%;
-            height: 100%;
+            width: 50%;
+            height: 50%;
         }
     </style>
 </head>
@@ -27,8 +27,8 @@
     </div>
     <div class="carousel-inner bg-info">
         <div class="carousel-item active">
-            <div class="d-flex align-items-center justify-content-center min-vh-100">
-                <div id="graph" class="min-vh-100 min-vw-100"></div>
+            <div id="container" class="d-flex align-items-center justify-content-center min-vh-100">
+                <div id="graph" class="min-vh-100 min-vw-100" style="text-align: center;"></div>
             </div>
         </div>
     </div>
@@ -72,12 +72,14 @@
             'umaps/umap_learned_seed_82_fold_4_bptclass.json',
             'umaps/umap_learned_seed_42_fold_2_bptclass.json',
             'umaps/umap_learned_seed_72_fold_3_dered_petro_r.json',
-            'umaps/umap_learned_seed_62_fold_3_lgm_tot_p50.json'
+            'umaps/umap_learned_seed_62_fold_3_lgm_tot_p50.json',
+            "Normalized Residuals",
         ];
         const trainingIndices = await (await fetch("training_indices.json")).json();
         const galaxyDetails = await (await fetch("galaxy_details.json")).json();
         const galaxyDetailsContainer = document.querySelector("#galaxyDetails");
         const galaxyImage = document.querySelector("#galaxyImage");
+        const container = document.querySelector("#container");
 
         const featurePicker = document.querySelector("#featurePicker");
         allJSONs.forEach((json, index) => {
@@ -96,11 +98,24 @@
 
         featurePicker.onchange = async () => {
             clearGalaxyDetails();
-            const plotURL = featurePicker.value;
-            plotData = await (await fetch(plotURL)).json();
-            Plotly.purge(graphDiv);
-            Plotly.newPlot(graphDiv, plotData);
-            graphDiv.on('plotly_click', handlePointClick);
+            const image = graphDiv.querySelector("img");
+            if(image) {
+                graphDiv.removeChild(image);
+            }
+            if(featurePicker.value === "Normalized Residuals") {
+                Plotly.purge(graphDiv);
+                const image = document.createElement("img");
+                image.src = "normalizedDeltaZ.png";
+                image.width = '500';
+                image.height = '500';
+                graphDiv.appendChild(image);
+            } else {
+                const plotURL = featurePicker.value;
+                plotData = await (await fetch(plotURL)).json();
+                Plotly.purge(graphDiv);
+                Plotly.newPlot(graphDiv, plotData);
+                graphDiv.on('plotly_click', handlePointClick);
+            }
         };
 
         Plotly.newPlot(graphDiv, plotData);
