@@ -74,6 +74,7 @@
             'umaps/umap_learned_seed_72_fold_3_dered_petro_r.json',
             'umaps/umap_learned_seed_62_fold_3_lgm_tot_p50.json',
             "Normalized Residuals",
+            "PhotoZ vs SpectralZ"
         ];
         const trainingIndices = await (await fetch("training_indices.json")).json();
         const galaxyDetails = await (await fetch("galaxy_details.json")).json();
@@ -101,6 +102,7 @@
             const image = graphDiv.querySelector("img");
             if(image) {
                 graphDiv.removeChild(image);
+                galaxyImage.style.display = 'block';
             }
             if(featurePicker.value === "Normalized Residuals") {
                 Plotly.purge(graphDiv);
@@ -108,6 +110,15 @@
                 image.src = "normalizedDeltaZ.png";
                 image.width = '500';
                 image.height = '500';
+                galaxyImage.style.display = 'none';
+                graphDiv.appendChild(image);
+            } else if(featurePicker.value === "PhotoZ vs SpectralZ") {
+                Plotly.purge(graphDiv);
+                const image = document.createElement("img");
+                image.src = "densityPlot.png";
+                image.style.width = "100%";
+                image.style.height = "100%";
+                galaxyImage.style.display = 'none';
                 graphDiv.appendChild(image);
             } else {
                 const plotURL = featurePicker.value;
