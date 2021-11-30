@@ -21,8 +21,14 @@
 
 <div id="demo" class="carousel slide" data-ride="carousel">
     <div class="carousel-indicators">
-        <div>Select Feature</div>
-        <select class="custom-select" aria-label="Select Feature" id="featurePicker">
+        <select class="custom-select ml-2" aria-label="Select Seed" id="seedPicker">
+            <option disabled>Model Seed</option>
+        </select>
+        <select class="custom-select ml-2" aria-label="Select Fold" id="foldPicker">
+            <option disabled>Fold</option>
+        </select>
+        <select class="custom-select ml-2" aria-label="Select Fold" id="featurePicker">
+            <option disabled>Feature</option>
         </select>
     </div>
     <div class="carousel-inner bg-info">
@@ -41,69 +47,75 @@
 </div>
 
 <script>
+    const getSelectionURL = function (seed, fold, feature) {
+        return `umaps/umap_learned_seed_${seed}_fold_${fold}_${feature}.json`;
+    }
+
     window.onload = async function () {
-        const allJSONs = [
-            'umaps/umap_learned_seed_62_fold_3_z.json',
-            'umaps/umap_learned_seed_82_fold_4_z.json',
-            'umaps/umap_learned_seed_72_fold_3_z.json',
-            'umaps/umap_learned_seed_52_fold_5_z.json',
-            'umaps/umap_learned_seed_32_fold_1_z.json',
-            'umaps/umap_learned_seed_72_fold_3_EBV.json',
-            'umaps/umap_learned_seed_62_fold_3_EBV.json',
-            'umaps/umap_learned_seed_32_fold_1_EBV.json',
-            'umaps/umap_learned_seed_42_fold_2_EBV.json',
-            'umaps/umap_learned_seed_82_fold_4_EBV.json',
-            'umaps/umap_learned_seed_52_fold_5_EBV.json',
-            'umaps/umap_learned_seed_32_fold_1_bptclass.json',
-            'umaps/umap_learned_seed_32_fold_1_lgm_tot_p50.json',
-            'umaps/umap_learned_seed_52_fold_5_dered_petro_r.json',
-            'umaps/umap_learned_seed_82_fold_4_dered_petro_r.json',
-            'umaps/umap_learned_seed_52_fold_5_lgm_tot_p50.json',
-            'umaps/umap_learned_seed_52_fold_5_bptclass.json',
-            'umaps/umap_learned_seed_62_fold_3_dered_petro_r.json',
-            'umaps/umap_learned_seed_42_fold_2_lgm_tot_p50.json',
-            'umaps/umap_learned_seed_72_fold_3_bptclass.json',
-            'umaps/umap_learned_seed_82_fold_4_lgm_tot_p50.json',
-            'umaps/umap_learned_seed_72_fold_3_lgm_tot_p50.json',
-            'umaps/umap_learned_seed_32_fold_1_dered_petro_r.json',
-            'umaps/umap_learned_seed_62_fold_3_bptclass.json',
-            'umaps/umap_learned_seed_42_fold_2_dered_petro_r.json',
-            'umaps/umap_learned_seed_42_fold_2_z.json',
-            'umaps/umap_learned_seed_82_fold_4_bptclass.json',
-            'umaps/umap_learned_seed_42_fold_2_bptclass.json',
-            'umaps/umap_learned_seed_72_fold_3_dered_petro_r.json',
-            'umaps/umap_learned_seed_62_fold_3_lgm_tot_p50.json',
-            "Normalized Residuals",
-            "PhotoZ vs SpectralZ"
-        ];
+        const SEEDS = [32, 42, 52, 62, 72, 82];
+        const FEATURES = ['z', 'bptclass', 'EBV', 'lgm_tot_p50', 'bptclass' ];
+        const FOLDS = [1, 2, 3, 4, 5];
+        const seedPicker = document.querySelector("#seedPicker");
+        const foldPicker = document.querySelector("#foldPicker");
+        const featurePicker = document.querySelector("#featurePicker");
+
+        SEEDS.forEach((seed, index) => {
+            const opt = document.createElement("option");
+            opt.value = seed;
+            if (index === 0) {
+                opt.selected = true;
+            }
+            opt.innerText = seed
+            seedPicker.appendChild(opt);
+        });
+
+        FOLDS.forEach((fold, index) => {
+            const opt = document.createElement("option");
+            opt.value = fold;
+            if (index === 0) {
+                opt.selected = true;
+            }
+            opt.innerText = fold
+            foldPicker.appendChild(opt);
+        });
+
+        FEATURES.forEach((feature, index) => {
+            const opt = document.createElement("option");
+            opt.value = feature;
+            if (index === 0) {
+                opt.selected = true;
+            }
+            opt.innerText = feature;
+            featurePicker.appendChild(opt);
+        
+        });
+
+        const normResiduals = "Normalized Residuals";
+        const normOpt = document.createElement("option");
+        normOpt.value = normResiduals;
+        normOpt.innerText = normResiduals;
+
+
+        
         const trainingIndices = await (await fetch("training_indices.json")).json();
         const galaxyDetails = await (await fetch("galaxy_details.json")).json();
         const galaxyDetailsContainer = document.querySelector("#galaxyDetails");
         const galaxyImage = document.querySelector("#galaxyImage");
         const container = document.querySelector("#container");
 
-        const featurePicker = document.querySelector("#featurePicker");
-        allJSONs.forEach((json, index) => {
-            const opt = document.createElement("option");
-            opt.value = json;
-            if (index === 0) {
-                opt.selected = true;
-            }
-            opt.innerText = json.replace('umaps/', '').replace(".json", "");
-            featurePicker.appendChild(opt);
-        });
-
 
         const graphDiv = document.querySelector("#graph");
-        let plotData = await (await fetch(allJSONs[0])).json();
+        const url = getSelectionURL(SEEDS[0], FOLDS[0], FEATURES[0]);
+        let plotData = await (await fetch(url)).json();
 
-        featurePicker.onchange = async () => {
+        async function  drawPlotlyPlot() {
             clearGalaxyDetails();
             const image = graphDiv.querySelector("img");
             if(image) {
                 graphDiv.removeChild(image);
                 galaxyImage.style.display = 'block';
-            }
+            }         
+            
             if(featurePicker.value === "Normalized Residuals") {
                 Plotly.purge(graphDiv);
                 const image = document.createElement("img");
@@ -121,15 +133,16 @@
                 galaxyImage.style.display = 'none';
                 graphDiv.appendChild(image);
             } else {
-                const plotURL = featurePicker.value;
-                plotData = await (await fetch(plotURL)).json();
-                Plotly.purge(graphDiv);
+                const url = getSelectionURL(seedPicker.value || SEEDS[0], foldPicker.value || FOLDS[0], featurePicker.value || FEATURES[0]);
+                plotData = await (await fetch(url)).json();
                 Plotly.newPlot(graphDiv, plotData);
                 graphDiv.on('plotly_click', handlePointClick);
             }
         };
 
-        Plotly.newPlot(graphDiv, plotData);
+        featurePicker.onchange = drawPlotlyPlot;
+        seedPicker.onchange = drawPlotlyPlot;
+        foldPicker.onchange = drawPlotlyPlot;
 
         function getMetadata(index) {
             const metadataIndex = trainingIndices[index];
@@ -179,8 +192,7 @@
             const metadata = getMetadata(point.pointNumber);
             addGalaxyDetails(metadata);
         };
-
-        graphDiv.on('plotly_click', handlePointClick);
+        await drawPlotlyPlot();
     }
 </script>
 </body>
