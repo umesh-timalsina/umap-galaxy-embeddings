@@ -47,9 +47,10 @@
 </div>
 
 <script>
+    const BASE_URL = 'https://raw.githubusercontent.com/umesh-timalsina/umap-galaxy-embeddings/main/';
     const getSelectionURL = function (seed, fold, feature) {
-        return `umaps/seed_${seed}_fold_${fold}_${feature}.json`;
-    }
+        return BASE_URL + `umaps/seed_${seed}_fold_${fold}_${feature}.json`;
+    };
 
     window.onload = async function () {
         const SEEDS = [32, 42, 52, 62, 72, 82];
