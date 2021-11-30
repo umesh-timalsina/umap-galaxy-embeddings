@@ -48,7 +48,7 @@
 
 <script>
     const getSelectionURL = function (seed, fold, feature) {
-        return `umaps/umap_learned_seed_${seed}_fold_${fold}_${feature}.json`;
+        return `umaps/seed_${seed}_fold_${fold}_${feature}.json`;
     }
 
     window.onload = async function () {
@@ -87,7 +87,7 @@
             }
             opt.innerText = feature;
             featurePicker.appendChild(opt);
-        
+
         });
 
         const normResiduals = "Normalized Residuals";
@@ -96,7 +96,7 @@
         normOpt.innerText = normResiduals;
 
 
-        
+
         const trainingIndices = await (await fetch("training_indices.json")).json();
         const galaxyDetails = await (await fetch("galaxy_details.json")).json();
         const galaxyDetailsContainer = document.querySelector("#galaxyDetails");
@@ -114,8 +114,8 @@
             if(image) {
                 graphDiv.removeChild(image);
                 galaxyImage.style.display = 'block';
-            }         
-            
+            }
+
             if(featurePicker.value === "Normalized Residuals") {
                 Plotly.purge(graphDiv);
                 const image = document.createElement("img");
