@@ -19,7 +19,8 @@ jobs:
           mv index.html public
           mv normalizedDeltaZ.png public
           mv training_indices.json public
-          
+          touch .nojekyll
+
       - name: Deploy 🚀
         uses: JamesIves/github-pages-deploy-action@4.1.1
         with:
