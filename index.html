@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Learned Features (UMAP)</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-2.6.3.min.js"></script>
+    <style>
+        /* Make the image fully responsive */
+        .carousel-inner img {
+            width: 50%;
+            height: 50%;
+        }
+    </style>
+</head>
+<body>
+
+<div id="demo" class="carousel slide" data-ride="carousel">
+    <div class="carousel-indicators">
+        <select class="custom-select ml-2" aria-label="Select Seed" id="seedPicker">
+            <option disabled>Model Seed</option>
+        </select>
+        <select class="custom-select ml-2" aria-label="Select Fold" id="foldPicker">
+            <option disabled>Fold</option>
+        </select>
+        <select class="custom-select ml-2" aria-label="Select Fold" id="featurePicker">
+            <option disabled>Feature</option>
+        </select>
+    </div>
+    <div class="carousel-inner bg-info">
+        <div class="carousel-item active">
+            <div id="container" class="d-flex align-items-center justify-content-center min-vh-100">
+                <div id="graph" class="min-vh-100 min-vw-100" style="text-align: center;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+<div style="position:absolute; z-index: 1000; top: 5%; right: 5%">
+    <img id="galaxyImage" width="250px" height="250px"
+         src="https://freepngimg.com/thumb/galaxy/5-2-galaxy-png-clipart.png">
+    <ul id="galaxyDetails" style="width:250px; height:250px;" class="list-group">
+    </ul>
+</div>
+
+<script>
+    const BASE_URL = 'https://raw.githubusercontent.com/umesh-timalsina/umap-galaxy-embeddings/main/';
+    const getSelectionURL = function (seed, fold, feature) {
+        return BASE_URL + `umaps/seed_${seed}_fold_${fold}_${feature}.json`;
+    };
+
+    window.onload = async function () {
+        const SEEDS = [32, 42, 52, 62, 72, 82];
+        const FEATURES = ['z', 'bptclass', 'EBV', 'lgm_tot_p50', 'bptclass' ];
+        const FOLDS = [1, 2, 3, 4, 5];
+        const seedPicker = document.querySelector("#seedPicker");
+        const foldPicker = document.querySelector("#foldPicker");
+        const featurePicker = document.querySelector("#featurePicker");
+
+        SEEDS.forEach((seed, index) => {
+            const opt = document.createElement("option");
+            opt.value = seed;
+            if (index === 0) {
+                opt.selected = true;
+            }
+            opt.innerText = seed
+            seedPicker.appendChild(opt);
+        });
+
+        FOLDS.forEach((fold, index) => {
+            const opt = document.createElement("option");
+            opt.value = fold;
+            if (index === 0) {
+                opt.selected = true;
+            }
+            opt.innerText = fold
+            foldPicker.appendChild(opt);
+        });
+
+        FEATURES.forEach((feature, index) => {
+            const opt = document.createElement("option");
+            opt.value = feature;
+            if (index === 0) {
+                opt.selected = true;
+            }
+            opt.innerText = feature;
+            featurePicker.appendChild(opt);
+
+        });
+
+        const normResiduals = "Normalized Residuals";
+        const normOpt = document.createElement("option");
+        normOpt.value = normResiduals;
+        normOpt.innerText = normResiduals;
+
+
+
+        const trainingIndices = await (await fetch("training_indices.json")).json();
+        const galaxyDetails = await (await fetch("galaxy_details.json")).json();
+        const galaxyDetailsContainer = document.querySelector("#galaxyDetails");
+        const galaxyImage = document.querySelector("#galaxyImage");
+        const container = document.querySelector("#container");
+
+
+        const graphDiv = document.querySelector("#graph");
+        const url = getSelectionURL(SEEDS[0], FOLDS[0], FEATURES[0]);
+        let plotData = await (await fetch(url)).json();
+
+        async function  drawPlotlyPlot() {
+            clearGalaxyDetails();
+            const image = graphDiv.querySelector("img");
+            if(image) {
+                graphDiv.removeChild(image);
+                galaxyImage.style.display = 'block';
+            }
+
+            if(featurePicker.value === "Normalized Residuals") {
+                Plotly.purge(graphDiv);
+                const image = document.createElement("img");
+                image.src = "normalizedDeltaZ.png";
+                image.width = '500';
+                image.height = '500';
+                galaxyImage.style.display = 'none';
+                graphDiv.appendChild(image);
+            } else if(featurePicker.value === "PhotoZ vs SpectralZ") {
+                Plotly.purge(graphDiv);
+                const image = document.createElement("img");
+                image.src = "densityPlot.png";
+                image.style.width = "100%";
+                image.style.height = "100%";
+                galaxyImage.style.display = 'none';
+                graphDiv.appendChild(image);
+            } else {
+                const url = getSelectionURL(seedPicker.value || SEEDS[0], foldPicker.value || FOLDS[0], featurePicker.value || FEATURES[0]);
+                plotData = await (await fetch(url)).json();
+                Plotly.newPlot(graphDiv, plotData);
+                graphDiv.on('plotly_click', handlePointClick);
+            }
+        };
+
+        featurePicker.onchange = drawPlotlyPlot;
+        seedPicker.onchange = drawPlotlyPlot;
+        foldPicker.onchange = drawPlotlyPlot;
+
+        function getMetadata(index) {
+            const metadataIndex = trainingIndices[index];
+            const metadata = Object.assign({}, galaxyDetails[metadataIndex]);
+            metadata.index = metadataIndex;
+            return metadata;
+        }
+
+        function addGalaxyDetails(metadata) {
+            clearGalaxyDetails();
+            Object.entries(metadata).forEach(([metadataKey, value]) => {
+                const li = document.createElement("li");
+                li.className = "list-group-item";
+                li.innerText = `${metadataKey}: ${value}`;
+                galaxyDetailsContainer.appendChild(li);
+            });
+            const URLLi = document.createElement('li');
+            URLLi.className = "list-group-item";
+            const navAnchor = document.createElement('a');
+            navAnchor.target = "_blank";
+            navAnchor.href = getNaviURL(metadata.ra, metadata.dec);
+            navAnchor.innerText = "Open in SDSS Navigator";
+            URLLi.appendChild(navAnchor);
+            galaxyDetailsContainer.appendChild(URLLi);
+            changeDisplayedImage(metadata);
+
+        }
+
+        function changeDisplayedImage(metadata) {
+            const imageURL = `./images/image_${metadata.index.toString().padStart(6, '0')}.jpg`;
+            galaxyImage.src = imageURL;
+        }
+
+        function getNaviURL(ra, dec) {
+            return `http://skyserver.sdss.org/dr14/en/tools/chart/navi.aspx?ra=${ra}&dec=${dec}&scale=0.2&width=120&height=120`;
+        }
+
+        const clearGalaxyDetails = function () {
+            while (galaxyDetailsContainer.firstChild) {
+                galaxyDetailsContainer.removeChild(galaxyDetailsContainer.firstChild);
+            }
+            galaxyImage.src = "https://freepngimg.com/thumb/galaxy/5-2-galaxy-png-clipart.png";
+        }
+
+        const handlePointClick = data => {
+            const [point] = data.points;
+            const metadata = getMetadata(point.pointNumber);
+            addGalaxyDetails(metadata);
+        };
+        await drawPlotlyPlot();
+    }
+</script>
+</body>
+
+</html>
