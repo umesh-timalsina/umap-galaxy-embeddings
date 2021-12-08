@@ -65,21 +65,36 @@
     };
 
     window.onload = async function () {
-        const SEEDS = [32, 42, 52, 62, 72, 82];
-        const FEATURES = ['z', 'bptclass', 'EBV', 'lgm_tot_p50', 'bptclass' ];
+        const SEEDS = {
+            32: 'Seed 32',
+            42: 'Seed 42',
+            52: 'Seed 52',
+            62: 'Seed 62',
+            72: 'Seed 72',
+            82: 'Seed 82'
+        };
+        
+        const FEATURES = {
+            z: 'Redshift', 
+            dered_petro_r: 'Deredened Petrosian Magnitudes',
+            EBV: 'E(B-V)', 
+            lgm_tot_p50: 'LGM Total P50', 
+            bptclass: 'BPT Class' 
+        };
+
         const FOLDS = [1, 2, 3, 4, 5];
         const seedPicker = document.querySelector("#seedPicker");
         const foldPicker = document.querySelector("#foldPicker");
         const featurePicker = document.querySelector("#featurePicker");
         const loading = document.querySelector("#loading");
 
-        SEEDS.forEach((seed, index) => {
+        Object.entries(SEEDS).forEach(([seed, text], index) => {
             const opt = document.createElement("option");
             opt.value = seed;
             if (index === 0) {
                 opt.selected = true;
             }
-            opt.innerText = seed
+            opt.label = text;
             seedPicker.appendChild(opt);
         });
 
@@ -89,19 +104,18 @@
             if (index === 0) {
                 opt.selected = true;
             }
-            opt.innerText = fold
+            opt.label = fold;
             foldPicker.appendChild(opt);
         });
 
-        FEATURES.forEach((feature, index) => {
+        Object.entries(FEATURES).forEach(([feature, text], index) => {
             const opt = document.createElement("option");
             opt.value = feature;
             if (index === 0) {
                 opt.selected = true;
             }
-            opt.innerText = feature;
+            opt.label = text;
             featurePicker.appendChild(opt);
-
         });
 
         const normResiduals = "Normalized Residuals";
@@ -126,7 +140,7 @@
 
 
         const graphDiv = document.querySelector("#graph");
-        const url = getSelectionURL(SEEDS[0], FOLDS[0], FEATURES[0]);
+        const url = getSelectionURL(32, 1, 'z');
         let plotData = await (await fetch(url)).json();
 
         const hideSpinner = () => {
@@ -160,12 +174,12 @@
                 hideSpinner();
                 const image = document.createElement("img");
                 image.src = "densityPlot.png";
-                image.style.width = "100%";
-                image.style.height = "100%";
+                image.style.width = "50%";
+                image.style.height = "50%";
                 galaxyImage.style.display = 'none';
                 graphDiv.appendChild(image);
             } else {
-                const url = getSelectionURL(seedPicker.value || SEEDS[0], foldPicker.value || FOLDS[0], featurePicker.value || FEATURES[0]);
+                const url = getSelectionURL(seedPicker.value || 32, foldPicker.value || 1, featurePicker.value || 'z');
                 plotData = await (await fetch(url)).json();
                 Plotly.newPlot(graphDiv, plotData).then(hideSpinner);
                 graphDiv.on('plotly_click', handlePointClick);
