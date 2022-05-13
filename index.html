@@ -39,9 +39,15 @@
             </select>
             <label for="featurePicker">Choose a Feature</label>
         </div>
+        <div class="form-group ml-2">
+            <select id="cmapPicker" class="custom-select" aria-label="Select Colormap">
+                <option disabled>Colormap</option>
+            </select>
+            <label for="cmapPicker">Choose a Colormap</label>
+        </div>
         <div id="loading" class="spinner-border text-primary ml-2" role="status">
             <span class="sr-only">Loading...</span>
-          </div>
+        </div>
     </div>
     <div class="carousel-inner bg-info">
         <div class="carousel-item active">
@@ -65,6 +71,52 @@
     };
 
     window.onload = async function () {
+
+        const turboColormap = await (await fetch("turbo.json")).json();
+
+        // https://gist.github.com/mikhailov-work/ee72ba4191942acecc03fe6da94fc73f
+        const redToTurbo = function(markerColors) {
+            return markerColors.map(color => {
+                const x = Math.max(0.0, Math.min(1.0, color[0]));
+                const a = parseInt(x * 255.0);
+                const b = Math.min(255, a+1);
+                const f = x * 255.0 - a;
+
+                return [
+                    turboColormap[a][0] + (turboColormap[b][0] - turboColormap[a][0]) * f,
+                    turboColormap[a][1] + (turboColormap[b][1] - turboColormap[a][1]) * f,
+                    turboColormap[a][2] + (turboColormap[b][2] - turboColormap[a][2]) * f
+                ];
+            });
+        };
+
+        // https://stackoverflow.com/questions/7706339/grayscale-to-red-green-blue-matlab-jet-color-scale
+        const redToJet = function(markerColors) {
+            return markerColors.map(color => {
+                const max = 1.0;
+                const min = 0.0;
+                const delta = max - min;
+                let red = color[0];
+                let jetColor = [1.0, 1.0, 1.0];
+
+                if(red < (min + 0.25 * delta)) {
+                    jetColor[0] = 0;
+                    jetColor[1] = 4 * (red - min) / delta;
+                } else if (red < (min + 0.5 * delta)) {
+                    jetColor[0] = 0;
+                    jetColor[2] = 1 + 4 * (min + 0.25 * delta - red) / delta;
+                } else if ( red < (min + 0.75 * delta)) {
+                    jetColor[0] = 4 * (red - min - 0.5 * delta) / delta;
+                    jetColor[2] = 0;
+                } else {
+                    jetColor[1] = 1 + 4 * (min + 0.75 * delta - red) / delta;
+                    jetColor[2] = 0;
+                }
+
+                return jetColor;
+            });
+        };
+
         const SEEDS = {
             32: 'Seed 32',
             42: 'Seed 42',
@@ -73,6 +125,8 @@
             72: 'Seed 72',
             82: 'Seed 82'
         };
+
+        let currentConfig;
         
         const FEATURES = {
             z: 'Redshift', 
@@ -81,12 +135,20 @@
             lgm_tot_p50: 'LGM Total P50', 
             bptclass: 'BPT Class' 
         };
+        
+
+        const COLORMAPS = {
+            Original: () => {}, 
+            Turbo: redToTurbo,
+            Jet: redToJet,
+        };
 
         const FOLDS = [1, 2, 3, 4, 5];
         const seedPicker = document.querySelector("#seedPicker");
         const foldPicker = document.querySelector("#foldPicker");
         const featurePicker = document.querySelector("#featurePicker");
         const loading = document.querySelector("#loading");
+        const cmapPicker = document.querySelector("#cmapPicker");
 
         Object.entries(SEEDS).forEach(([seed, text], index) => {
             const opt = document.createElement("option");
@@ -116,6 +178,16 @@
             }
             opt.label = text;
             featurePicker.appendChild(opt);
+        });
+
+        Object.keys(COLORMAPS).forEach((cmap, index) =>  {
+            const opt = document.createElement("option");
+            opt.value = cmap;
+            if (index === 0) {
+                opt.selected = true;
+            }
+            opt.label = cmap;
+            cmapPicker.appendChild(opt);
         });
 
         const normResiduals = "Normalized Residuals";
@@ -151,7 +223,24 @@
             loading.style.display = 'block';
         };
 
+        function applyColorScale(plotlyData, cmap='Original') {
+            const data = plotData.data[0];
+            data.marker.color = COLORMAPS[cmap](data.marker.color) ?? data.marker.color;
+        }
+
+        function getPlotConfig() {
+            return {
+                    feature: featurePicker.value,
+                    seed: seedPicker.value,
+                    fold: foldPicker.value,
+                    cmap: cmapPicker.value,
+            };
+        }
+
         async function  drawPlotlyPlot() {
+            if (currentConfig === getPlotConfig()) {
+                return;
+            }
             clearGalaxyDetails();
             const image = graphDiv.querySelector("img");
             if(image) {
@@ -181,14 +270,17 @@
             } else {
                 const url = getSelectionURL(seedPicker.value || 32, foldPicker.value || 1, featurePicker.value || 'z');
                 plotData = await (await fetch(url)).json();
+                applyColorScale(plotData, cmapPicker.value);
                 Plotly.newPlot(graphDiv, plotData).then(hideSpinner);
                 graphDiv.on('plotly_click', handlePointClick);
             }
+            currentConfig = getPlotConfig();
         };
 
         featurePicker.onchange = drawPlotlyPlot;
         seedPicker.onchange = drawPlotlyPlot;
         foldPicker.onchange = drawPlotlyPlot;
+        cmapPicker.onchange = drawPlotlyPlot;
 
         function getMetadata(index) {
             const metadataIndex = trainingIndices[index];
