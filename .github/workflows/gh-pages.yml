@@ -16,6 +16,7 @@ jobs:
           mv images public
           mv densityPlot.png public
           mv galaxy_details.json public
+          mv turbo.json public
           mv index.html public
           mv normalizedDeltaZ.png public
           mv training_indices.json public
